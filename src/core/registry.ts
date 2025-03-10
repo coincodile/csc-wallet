@@ -1,10 +1,30 @@
-/** @odoo-module **/
 /*
-This is part of odoo web addon. 
+The idea of this file is from Odoo Web Project.
+
 see: https://github.com/odoo/odoo/tree/master/addons/web/static/src/core
 see: https://www.odoo.com/documentation/16.0/developer/reference/frontend/registries.html
 */
-import { EventBus } from "@odoo/owl";
+/**
+The main idea of the registry is to provide a way to store and retrieve objects. It takes
+inspiration from the Odoo registry system, which is a way to store objects in a
+centralized way. The registry is a simple object that stores objects by key. It
+provides a way to add, get, and remove objects by key. It also provides a way to
+get all objects in the registry. The registry also provides a way to create
+sub-registries, which are registries that are stored in the main registry.
+
+The registry is used in the Odoo web client to store objects such as views,
+models, and actions. It is used to store objects that are used throughout the
+application. The registry is used to store objects that are used in many
+different parts of the application. For example, the registry is used to store
+views that are used in many different parts of the application. The registry is
+also used to store models that are used in many different parts of the
+application. The registry is also used to store actions that are used in many
+different parts of the application.
+
+see: https://github.com/odoo/odoo/tree/master/addons/web/static/src/core
+see: https://www.odoo.com/documentation/16.0/developer/reference/frontend/registries.html
+*/
+import { EventBus, validate } from "@odoo/owl";
 
 // -----------------------------------------------------------------------------
 // Errors
@@ -13,6 +33,25 @@ export class KeyNotFoundError extends Error { }
 
 export class DuplicatedKeyError extends Error { }
 
+// -----------------------------------------------------------------------------
+// Validation
+// -----------------------------------------------------------------------------
+
+const validateSchema = (name, key, value, schema) => {
+    // TODO: maso, 2025: replace with app.debug
+    // if (!odoo.debug) {
+    //     return;
+    // }
+    try {
+        validate(value, schema);
+    } catch (error) {
+        throw new Error(`Validation error for key "${key}" in registry "${name}": ${error}`);
+    }
+};
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
 /**
  * Registry
  *
@@ -31,13 +70,22 @@ export class Registry extends EventBus {
     content: Map<string, any>;
     elements: any[] | null;
     entries: any[] | null;
+    name: string;
+    validationSchema: any;
 
-    constructor() {
+    /**
+     * Creates new instance of Registry
+     * 
+     * @param name the name of the registry
+     */
+    constructor(name="root") {
         super();
-        this.content = new Map<string, any>();
-        this.subRegistries = new Map<string, Registry>();
+        this.content = new Map();
+        this.subRegistries = new Map;
         this.elements = null;
         this.entries = null;
+        this.name = name;
+        this.validationSchema = null;
 
         this.addEventListener("UPDATE", () => {
             this.elements = null;
@@ -152,6 +200,27 @@ export class Registry extends EventBus {
         }
         return category;
     }
+
+
+    /**
+     * Set a new validation schema for this registry. This schema will be used to
+     * validate all entries added to the registry.
+     * 
+     * This method can only be called once on a registry. If the schema is already
+     * set, an error is thrown.
+     * 
+     * 
+     * @param schema any
+     */
+    addValidation(schema) {
+        if (this.validationSchema) {
+            throw new Error("Validation schema already set on this registry");
+        }
+        this.validationSchema = schema;
+        for (const [key, value] of this.getEntries()) {
+            validateSchema(this.name, key, value, schema);
+        }
+    }/*  */
 }
 
 export const registry = new Registry();
